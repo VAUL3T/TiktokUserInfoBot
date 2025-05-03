@@ -18,6 +18,10 @@ Only in rare cases such as when enabling anti–rate limiting features we may re
 
 Please note: All our projects are licensed under (GPLv3) 
 
+> [!NOTE]
+> We are not responsible for any damange done by this programm or modified versions, 
+> We only offer support and guarantee for our ORIGINAL service.
+
 Further documentation
 ----------------------
 - Website: - 
@@ -31,11 +35,40 @@ How to use ¿
 
 /id = Search user by user ID 
 
-## Install Tool on PC 💻
+## How is your informaion managed 
 
-```sh
-# soon 
-```
+As we said we do not collect any data , but if you are being rate limited or request an anti rate limit you are still ram-saved 
+
+### Rate-Limit 
+
+| Saved | Time  |
+|----------|------|
+| rate limit  | `until rate limit is over` |
+| anti rate  | `user saved until you request an removal` |
+| blacklist | `user saved until you request an removal`
+
+
+#### Logs
+
+we have a small debug system that logs things like "/start executed" for debug reasons 
+
+in these logs no data is displayed 
+
+|                               | Displayed ? | 
+|-------------------------------|:-------:|
+| Who                           |    🔴    |  
+| Time.                         |    🔴    |  
+| Command                       |    🟢    |
+| User ID                       |    🔴    | 
+| Username                      |    🔴    | 
+
+unlike other services we dont log any user data at all 
+
+
+we dont know who you are searching , who you are and when you searched 
+
+> [!NOTE]
+> Logs are only visible until server shutdown , no logfile is created evertything is only printed into the console 
 
 ## Name and Background 
 TikTok user info started as a personal project to help me improve my skills , now it has over 20 daily users and is hosted and managed by VAUL3T 

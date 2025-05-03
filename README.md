@@ -1,5 +1,5 @@
 <div align="center">
-    <img src="IMG_0288.jpeg" width="32%">
+    <img src="image/IMG_0288.jpeg" width="32%">
     <h1>UserInfo (VAUL3T)</h1>
     <a href="https://www.gnu.org/licenses/gpl-3.0.html">
   <img src="https://img.shields.io/badge/license-GPLv3-blue.svg" alt="License: GPL v3">

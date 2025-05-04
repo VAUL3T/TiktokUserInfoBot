@@ -70,6 +70,7 @@ class TiktokUserScraper:
         return datetime.fromtimestamp(ts, tz=timezone.utc).strftime('%d %b %Y %H:%M')
 
     def _error_response(self):
+        print("DEBUG : User not found or unable to fetch") 
         return {"error": "🚨 Account not found or unable to fetch data\n\n Make Sure to send user without (@)  \n\n If the error continues contact bot owner @sqzxzp"}
 
 TOKEN = "XXX-XXX-XXX-XX-XXX-XXX-XXX-XXX"
@@ -152,6 +153,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
                 remaining_time = 1800 - elapsed
                 minutes = int(remaining_time // 60)
                 seconds = int(remaining_time % 60)
+                print("DEBUG : Rate-limit")
                 await update.message.reply_text(
                     f"🚫 Rate limit exceeded. Please wait {minutes}m {seconds}s before using /start again."
                 )
@@ -198,6 +200,7 @@ async def start_id(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
                 remaining_time = 1800 - elapsed
                 minutes = int(remaining_time // 60)
                 seconds = int(remaining_time % 60)
+                print("DEBUG : Rate-limit")
                 await update.message.reply_text(
                     f"🚫 Rate limit exceeded. Please wait {minutes}m {seconds}s before using /id again."
                 )
@@ -287,6 +290,7 @@ async def raw_data_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) 
                 remaining_time = 300 - elapsed
                 minutes = int(remaining_time // 60)
                 seconds = int(remaining_time % 60)
+                print("DEBUG : Rate-limit")
                 await query.answer(
                     f"⚠️ Rate Limit. Please wait {minutes}m {seconds}s.",
                     show_alert=True
@@ -359,6 +363,7 @@ async def refresh_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                 remaining_time = 300 - elapsed
                 minutes = int(remaining_time // 60)
                 seconds = int(remaining_time % 60)
+                print("DEBUG : Rate-limit")
                 await query.answer(
                     f"⚠️ Rate Limit. Please wait {minutes}m {seconds}s.",
                     show_alert=True

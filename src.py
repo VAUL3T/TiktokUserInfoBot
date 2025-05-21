@@ -1,8 +1,16 @@
 import requests
 import os
+import random
+import string
 import re
+import asyncio
+import time
 import logging
+import socks
+import socket
 from io import BytesIO
+from io import StringIO
+from uuid import uuid4
 import pycountry
 import json
 from datetime import datetime, timezone, timedelta
@@ -39,46 +47,51 @@ except FileNotFoundError:
 rate_limit = {}
 CHANNEL_ID = "@vaul3t"
 
+
 class TiktokUserScraper:
     URI_BASE = 'https://www.tiktok.com/'
 
-    def __init__(self):
-        self.doxx_data = self._load_doxx_data()
-        self.blacklist = self._load_blacklist()
-
-    def _load_doxx_data(self):
-        try:
-            with open('doxx.json', 'r') as f:
-                return json.load(f)
-        except FileNotFoundError:
-            return {}
-
-        # Connections with server(VPS server)
-
-        username_key = user['uniqueId'].lower()
-        if username_key in self.doxx_data:
-            print("DEBUG : Doxx data found")
-            output["Doxx"] = self.doxx_data[username_key]
-
-        output['_raw_user'] = user
-        print("DEBUG : user info grabbing completed")
-
-        return output
-
-    def _convert_timestamp(self, ts):
-        if not ts: return 'N/A'
-        return datetime.fromtimestamp(ts, tz=timezone.utc).strftime('%d %b %Y %H:%M')
-
+   
     def _error_response(self):
-        print("DEBUG : User not found or unable to fetch") 
-        return {"error": "🚨 Account not found or unable to fetch data\n\n Make Sure to send user without (@)  \n\n If the error continues contact bot owner @sqzxzp"}
+        print("DEBUG : Account not found")
+        return {"error": "🚨 Account not found or unable to fetch data\n\n Make Sure to send user without (@)  \n\n If the error continues contact bot owner @kyslaw"}
 
-TOKEN = "XXX-XXX-XXX-XX-XXX-XXX-XXX-XXX"
+TOKEN = "XXXXX-XXXXXX-XXXXXX-XXXXXX"
 scraper = TiktokUserScraper()
+
+def get_user_token(user_id):
+    try:
+        with open("/home/SQX/mysite/TOKEN.json", "r") as f:
+            tokens = json.load(f)
+        return next((t for t in tokens if t["userID"] == str(user_id)), None)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return None
+
+def update_user_token(user_id, new_token):
+    try:
+        try:
+            with open("/home/SQX/mysite/TOKEN.json", "r") as f:
+                tokens = json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError):
+            tokens = []
+
+        tokens = [t for t in tokens if t["userID"] != str(user_id)]
+
+        tokens.append({
+            "token": new_token,
+            "userID": str(user_id)
+        })
+
+        with open("/home/SQX/mysite/TOKEN.json", "w") as f:
+            json.dump(tokens, f, indent=2)
+
+        return True
+    except Exception as e:
+        print(f"Error updating token: {e}")
+        return False
 
 async def is_member(user_id: int, bot) -> bool:
     try:
-        print("DEBUG : is_member executed")
         member = await bot.get_chat_member(chat_id=CHANNEL_ID, user_id=user_id)
         return member.status in ['member', 'administrator', 'creator']
     except Exception as e:
@@ -86,11 +99,11 @@ async def is_member(user_id: int, bot) -> bool:
         return False
 
 async def prompt_to_join(update: Update):
-    print("DEBUG : prompt_to_join executed")
+    print("DEBUG : Prompt to join executed")
     keyboard = [
         [InlineKeyboardButton("Join Channel", url=f"https://t.me/{CHANNEL_ID.lstrip('@')}")],
         [InlineKeyboardButton("I've Joined ✅", callback_data="check_join")],
-        [InlineKeyboardButton("Issues ?", url=f"https://t.me/@sqzxzp")]
+        [InlineKeyboardButton("Issues ?", url=f"https://t.me/@kyslaw")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     text = (
@@ -104,7 +117,7 @@ async def prompt_to_join(update: Update):
         await update.callback_query.message.reply_text(text, reply_markup=reply_markup)
 
 async def check_join_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    print("DEBUG : check_join executed")
+    print("DEBUG : Check Join")
     query = update.callback_query
     await query.answer()
     user_id = query.from_user.id
@@ -153,7 +166,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
                 remaining_time = 1800 - elapsed
                 minutes = int(remaining_time // 60)
                 seconds = int(remaining_time % 60)
-                print("DEBUG : Rate-limit")
+                print("DEBUG : Rate-Limit ")
                 await update.message.reply_text(
                     f"🚫 Rate limit exceeded. Please wait {minutes}m {seconds}s before using /start again."
                 )
@@ -200,7 +213,7 @@ async def start_id(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
                 remaining_time = 1800 - elapsed
                 minutes = int(remaining_time // 60)
                 seconds = int(remaining_time % 60)
-                print("DEBUG : Rate-limit")
+                print("DEBUG : Rate-Limit ")
                 await update.message.reply_text(
                     f"🚫 Rate limit exceeded. Please wait {minutes}m {seconds}s before using /id again."
                 )
@@ -255,12 +268,20 @@ async def handle_input(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     return ConversationHandler.END
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    print("DEBUG : /cancel executed")
     await update.message.reply_text('❌ Operation cancelled')
     return ConversationHandler.END
 
+def trigger_token_reload():
+    url = "https://sqx.pythonanywhere.com/api/v0/@server/@admin/token/reload_token"
+    headers = {"X-API-Key": "XXX-XXX-XXX"}
+    try:
+        response = requests.post(url, headers=headers)
+        response.raise_for_status()
+        print(f"Token reload triggered - Status: {response.status_code}")
+    except requests.exceptions.RequestException as e:
+        print(f"Token reload failed: {str(e)}")
+
 async def raw_data_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    print("DEBUG : raw-data requested")
     query = update.callback_query
     user = update.effective_user
     user_id = user.id
@@ -290,7 +311,6 @@ async def raw_data_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) 
                 remaining_time = 300 - elapsed
                 minutes = int(remaining_time // 60)
                 seconds = int(remaining_time % 60)
-                print("DEBUG : Rate-limit")
                 await query.answer(
                     f"⚠️ Rate Limit. Please wait {minutes}m {seconds}s.",
                     show_alert=True
@@ -310,10 +330,8 @@ async def raw_data_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         raw_user_data = result.get('_raw_user')
         if not raw_user_data:
             await query.message.reply_text("❌ Raw user data not available.")
-            print("DEBUG : no raw data avaiable")
             return
 
-        print("DEBUG : gen json file")
         date_str = datetime.now().strftime("%Y-%m-%d")
         clean_username = result.get('Username', 'unknown').replace('@', '').replace('/', '_')
         filename = f"{date_str}_{clean_username}_raw.json"
@@ -329,11 +347,163 @@ async def raw_data_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         )
 
     except Exception as e:
-        print("DEBUG : raw data file generation failed")
         await query.message.reply_text(f"⚠️ Failed to generate raw data: {str(e)}")
 
+async def api_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    print("DEBUG : API command executed")
+    user = update.effective_user
+    existing = get_user_token(user.id)
+    user_id = user.id
+    current_time = datetime.now(timezone.utc)
+    username = user.username
+
+    exempt = False
+    if username:
+        exempt = f"@{username.lower()}" in non_rate
+
+    if not exempt:
+        current_time = datetime.now(timezone.utc)
+
+        if user_id not in rate_limit:
+            rate_limit[user_id] = {}
+        if 'id' not in rate_limit[user_id]:
+            rate_limit[user_id]['id'] = {'count': 0, 'start_time': current_time}
+
+        user_data = rate_limit[user_id]['id']
+        elapsed = (current_time - user_data['start_time']).total_seconds()
+
+        if elapsed > 300:
+            user_data['count'] = 1
+            user_data['start_time'] = current_time
+        else:
+            if user_data['count'] >= 2:
+                remaining_time = 1800 - elapsed
+                minutes = int(remaining_time // 60)
+                seconds = int(remaining_time % 60)
+                print("DEBUG : Rate-Limit ")
+                await update.message.reply_text(
+                    f"🚫 Rate limit exceeded. Please wait {minutes}m {seconds}s before using /id again."
+                )
+                return ConversationHandler.END
+            user_data['count'] += 1
+
+    if not await is_member(user.id, context.bot):
+        await prompt_to_join(update)
+        return ConversationHandler.END
+
+    if existing:
+        token = existing["token"]
+        message = (
+            f"You already own a Token\n\n"
+            f"`{token}`\n\n"
+            "*Do NOT share or publish your token*"
+        )
+    else:
+        new_token = generate_token()
+        success = update_user_token(user.id, new_token)
+        if not success:
+            await update.message.reply_text("⚠️ Failed to generate token. Please try again.")
+            return
+        token = new_token
+        message = (
+            "Token Generation successful\n\n"
+            f"`{token}`\n\n"
+            "*Do NOT share or publish your token*"
+        )
+        trigger_token_reload()
+
+    keyboard = [
+        [
+            InlineKeyboardButton("Validate Token", url="https://sqx.pythonanywhere.com/autho"),
+            InlineKeyboardButton("Revoke Token", callback_data=f"revoke:{user.id}")
+        ]
+    ]
+
+    await update.message.reply_text(
+        message,
+        parse_mode=ParseMode.MARKDOWN_V2,
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+async def revoke_token_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+
+    if ':' not in query.data:
+        await query.answer("Invalid request data. Please try again.", show_alert=True)
+        return
+
+    user_id = query.data.split(":")[1]
+    user = update.effective_user
+    user_id_q = user.id
+    current_time = datetime.now(timezone.utc)
+    username = user.username
+
+    if username and f"@{username.lower()}" in ignore:
+        print(f"DEBUG : Ignoring user @{username} due to exemption")
+        return ConversationHandler.END
+
+    if not await is_member(user.id, context.bot):
+        await prompt_to_join(update)
+        return ConversationHandler.END
+
+    exempt = any(exempt_user.lower() == f"@{username.lower()}" for exempt_user in non_rate) if username else False
+
+    if not exempt:
+        if user_id_q not in rate_limit:
+            rate_limit[user_id_q] = {}
+        if 'raw_data' not in rate_limit[user_id_q]:
+            rate_limit[user_id_q]['raw_data'] = {'count': 0, 'start_time': current_time}
+
+        user_data = rate_limit[user_id_q]['raw_data']
+        elapsed = (current_time - user_data['start_time']).total_seconds()
+
+        if elapsed > 300:
+            user_data['count'] = 1
+            user_data['start_time'] = current_time
+        else:
+            if user_data['count'] >= 1:
+                remaining_time = 300 - elapsed
+                minutes = int(remaining_time // 60)
+                seconds = int(remaining_time % 60)
+                await query.answer(
+                    f"⚠️ Rate Limit. Please wait {minutes}m {seconds}s.",
+                    show_alert=True
+                )
+                return
+            user_data['count'] += 1
+
+    await query.answer()
+
+    new_token = generate_token()
+    success = update_user_token(user_id, new_token)
+
+    if not success:
+        await query.edit_message_text("⚠️ Failed to revoke token. Please try again.")
+        return
+
+    trigger_token_reload()
+
+    new_message = (
+        "Token Revoked & Regenerated\n\n"
+        f"`{new_token}`\n\n"
+        "*Do NOT share or publish your token*"
+    )
+
+    keyboard = [
+        [
+            InlineKeyboardButton("Validate Token", url="https://sqx.pythonanywhere.com/autho"),
+            InlineKeyboardButton("Revoke Token", callback_data=f"revoke:{user_id}")
+        ]
+    ]
+
+    await query.edit_message_text(
+        new_message,
+        parse_mode=ParseMode.MARKDOWN_V2,
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
 async def refresh_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    print("DEBUG : refresh requested")
+    print("DEBUG : Refresh requested")
     query = update.callback_query
     user_id = query.from_user.id
     current_time = datetime.now(timezone.utc)
@@ -363,7 +533,6 @@ async def refresh_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                 remaining_time = 300 - elapsed
                 minutes = int(remaining_time // 60)
                 seconds = int(remaining_time % 60)
-                print("DEBUG : Rate-limit")
                 await query.answer(
                     f"⚠️ Rate Limit. Please wait {minutes}m {seconds}s.",
                     show_alert=True
@@ -392,7 +561,7 @@ async def refresh_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
         keyboard = [
             [InlineKeyboardButton("🔄 Refresh Information", callback_data=f"refresh:{identifier}")],
-            [InlineKeyboardButton("📁 Raw Data", callback_data=f"raw_data:{identifier}")]
+            [InlineKeyboardButton("📁 Raw Data", callback_data=f"raw_data:{identifier}")],
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -414,7 +583,6 @@ async def refresh_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         )
 
 async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    logging.debug("DEBUG : user ran into an error , please check server logs")
     error_msg = "⚠️ An error occurred while processing your request\n\nIf error continues contact owner"
     print(f"Error found : {context.error}")
     try:
@@ -434,8 +602,7 @@ def main() -> None:
     application = ApplicationBuilder().token(TOKEN).build()
     application.add_error_handler(error_handler)
 
-    application.add_handler(CallbackQueryHandler(check_join_callback, pattern="^check_join$"))
-    application.add_handler(CallbackQueryHandler(raw_data_callback, pattern="^raw_data:"))
+    application.add_handler(CommandHandler('api', api_command))
 
     conv_handler = ConversationHandler(
         entry_points=[
@@ -450,7 +617,12 @@ def main() -> None:
     )
     application.add_handler(conv_handler)
 
+    application.add_handler(CallbackQueryHandler(revoke_token_callback, pattern="^revoke:"))
     application.add_handler(CallbackQueryHandler(refresh_callback, pattern="^refresh:"))
+    application.add_handler(CallbackQueryHandler(check_join_callback, pattern="^check_join$"))
+    application.add_handler(CallbackQueryHandler(raw_data_callback, pattern="^raw_data:"))
+
+    print("DEBUG : Bot running")
     application.run_polling()
 
 if __name__ == '__main__':
